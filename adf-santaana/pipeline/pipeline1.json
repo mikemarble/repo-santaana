@@ -1,0 +1,401 @@
+{
+	"name": "pipeline1",
+	"properties": {
+		"activities": [
+			{
+				"name": "Lookup1",
+				"type": "Lookup",
+				"dependsOn": [
+					{
+						"activity": "SetRawFolder",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "SqlServerSource",
+						"sqlReaderQuery": "SELECT [id]\n      ,[dataSourceName]\n      ,[processGroup]\n      ,[processGroupOrder]\n      ,[dataSourceType]\n      ,[fileExtension]\n      ,[secretConnectionString]\n      ,[secretDataLakeConnString]\n      ,[srcDatalakeContainerName]\n      ,[srcDataLakePath]\n      ,[onPremFileSystemPath]\n      ,[onPremFileSystemName]\n      ,[databaseName]\n      ,[sqlSchema]\n      ,[sqlTable]\n      ,[srcKeyColumns]\n      ,[dstRawContainer]\n      ,[dstRawPath]\n      ,[dstRefinedContainer]\n      ,[dstRefinedPath]\n      ,[SrcToRawDatabricksNotebook]\n      ,[RawtoRefinedDatabricksNotebook]\n      ,[IsEnabled]\n      ,[status]\n      ,[rawSourceQuery]\n      ,[refinedSourceQuery]\n      ,[isSnapshot]\n      ,[isWatermark]\n      ,[watermarkValue]\n      ,[isChangeTracking]\n      ,[lastChangeTrackingValue]\n\t  ,CASE \n\t\tWHEN isSnapshot = '1' THEN 'snapshot'\n\t\tWHEN isWatermark = '1' THEN 'watermark'\n\t\tWHEN isChangeTracking = '1' THEN 'changetracking'\n\t   END AS typeOfPull\n  FROM [dbo].[metaSourceToRefined]\n  WHERE IsEnabled='1'",
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					},
+					"dataset": {
+						"referenceName": "SqlServerTable1",
+						"type": "DatasetReference"
+					},
+					"firstRowOnly": false
+				}
+			},
+			{
+				"name": "ForEach1",
+				"type": "ForEach",
+				"dependsOn": [
+					{
+						"activity": "Lookup1",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@activity('Lookup1').output.value",
+						"type": "Expression"
+					},
+					"activities": [
+						{
+							"name": "Copy data1",
+							"type": "Copy",
+							"state": "Inactive",
+							"onInactiveMarkAs": "Succeeded",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"source": {
+									"type": "SqlServerSource",
+									"queryTimeout": "02:00:00",
+									"partitionOption": "None"
+								},
+								"sink": {
+									"type": "DelimitedTextSink",
+									"storeSettings": {
+										"type": "AzureBlobStorageWriteSettings"
+									},
+									"formatSettings": {
+										"type": "DelimitedTextWriteSettings",
+										"quoteAllText": true,
+										"fileExtension": ".txt"
+									}
+								},
+								"enableStaging": false,
+								"translator": {
+									"type": "TabularTranslator",
+									"typeConversion": true,
+									"typeConversionSettings": {
+										"allowDataTruncation": true,
+										"treatBooleanAsNumber": false
+									}
+								}
+							},
+							"inputs": [
+								{
+									"referenceName": "sqldb",
+									"type": "DatasetReference",
+									"parameters": {
+										"schema": {
+											"value": "@item().sqlSchema",
+											"type": "Expression"
+										},
+										"table": {
+											"value": "@item().sqlTable",
+											"type": "Expression"
+										}
+									}
+								}
+							],
+							"outputs": [
+								{
+									"referenceName": "DelimitedText1",
+									"type": "DatasetReference",
+									"parameters": {
+										"container": {
+											"value": "@item().dstRawContainer",
+											"type": "Expression"
+										},
+										"directory": {
+											"value": "@concat(item().dstRawPath,'/',variables('rawFolder'))",
+											"type": "Expression"
+										},
+										"filename": {
+											"value": "@item().sqlTable",
+											"type": "Expression"
+										}
+									}
+								}
+							]
+						},
+						{
+							"name": "TypeOfPull",
+							"type": "Switch",
+							"dependsOn": [],
+							"userProperties": [],
+							"typeProperties": {
+								"on": {
+									"value": "@item().typeOfPull",
+									"type": "Expression"
+								},
+								"cases": [
+									{
+										"value": "snapshot",
+										"activities": [
+											{
+												"name": "SourceToRaw_CT",
+												"type": "Copy",
+												"state": "Inactive",
+												"onInactiveMarkAs": "Succeeded",
+												"dependsOn": [],
+												"policy": {
+													"timeout": "0.12:00:00",
+													"retry": 0,
+													"retryIntervalInSeconds": 30,
+													"secureOutput": false,
+													"secureInput": false
+												},
+												"userProperties": [],
+												"typeProperties": {
+													"source": {
+														"type": "SqlServerSource",
+														"queryTimeout": "02:00:00",
+														"partitionOption": "None"
+													},
+													"sink": {
+														"type": "DelimitedTextSink",
+														"storeSettings": {
+															"type": "AzureBlobStorageWriteSettings"
+														},
+														"formatSettings": {
+															"type": "DelimitedTextWriteSettings",
+															"quoteAllText": true,
+															"fileExtension": ".txt"
+														}
+													},
+													"enableStaging": false,
+													"translator": {
+														"type": "TabularTranslator",
+														"typeConversion": true,
+														"typeConversionSettings": {
+															"allowDataTruncation": true,
+															"treatBooleanAsNumber": false
+														}
+													}
+												},
+												"inputs": [
+													{
+														"referenceName": "sqldb",
+														"type": "DatasetReference",
+														"parameters": {
+															"schema": {
+																"value": "@item().sqlSchema",
+																"type": "Expression"
+															},
+															"table": {
+																"value": "@item().sqlTable",
+																"type": "Expression"
+															}
+														}
+													}
+												],
+												"outputs": [
+													{
+														"referenceName": "DelimitedText1",
+														"type": "DatasetReference",
+														"parameters": {
+															"container": {
+																"value": "@item().dstRawContainer",
+																"type": "Expression"
+															},
+															"directory": {
+																"value": "@concat(item().dstRawPath,'/',variables('rawFolder'))",
+																"type": "Expression"
+															},
+															"filename": {
+																"value": "@item().sqlTable",
+																"type": "Expression"
+															},
+															"storage_secret": {
+																"value": "@item().secretDataLakeConnString",
+																"type": "Expression"
+															}
+														}
+													}
+												]
+											}
+										]
+									}
+								]
+							}
+						}
+					]
+				}
+			},
+			{
+				"name": "GetYear",
+				"type": "SetVariable",
+				"dependsOn": [],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "year",
+					"value": {
+						"value": "@substring(convertFromUtc(utcnow(),'Mountain Standard Time'),0,4)",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "GetMonth",
+				"type": "SetVariable",
+				"dependsOn": [],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "month",
+					"value": {
+						"value": "@substring(convertFromUtc(utcnow(),'Mountain Standard Time'),5,2)",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "GetDay",
+				"type": "SetVariable",
+				"dependsOn": [],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "day",
+					"value": {
+						"value": "@substring(convertFromUtc(utcnow(),'Mountain Standard Time'),8,2)",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "GetHour",
+				"type": "SetVariable",
+				"dependsOn": [],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "hour",
+					"value": {
+						"value": "@substring(convertFromUtc(utcnow(),'Mountain Standard Time'),11,2)",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "SetRawFolder",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "GetYear",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					},
+					{
+						"activity": "GetMonth",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					},
+					{
+						"activity": "GetDay",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					},
+					{
+						"activity": "GetHour",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					},
+					{
+						"activity": "GetMinute",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "rawFolder",
+					"value": {
+						"value": "@concat(variables('year'),'/',variables('month'),'/',variables('day'),'/',variables('hour'),'/',variables('hour'),'/',variables('minute'))",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "GetMinute",
+				"type": "SetVariable",
+				"dependsOn": [],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "minute",
+					"value": {
+						"value": "@substring(convertFromUtc(utcnow(),'Mountain Standard Time'),14,2)",
+						"type": "Expression"
+					}
+				}
+			}
+		],
+		"parameters": {
+			"processGroup": {
+				"type": "string"
+			}
+		},
+		"variables": {
+			"year": {
+				"type": "String"
+			},
+			"month": {
+				"type": "String"
+			},
+			"day": {
+				"type": "String"
+			},
+			"hour": {
+				"type": "String"
+			},
+			"rawFolder": {
+				"type": "String"
+			},
+			"minute": {
+				"type": "String"
+			}
+		},
+		"annotations": [],
+		"lastPublishTime": "2023-08-03T20:27:16Z"
+	},
+	"type": "Microsoft.DataFactory/factories/pipelines"
+}

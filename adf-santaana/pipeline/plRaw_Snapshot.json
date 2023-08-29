@@ -1,0 +1,633 @@
+{
+	"name": "plRaw_Snapshot",
+	"properties": {
+		"activities": [
+			{
+				"name": "Lookup1",
+				"type": "Lookup",
+				"dependsOn": [
+					{
+						"activity": "Stored procedure1",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "SqlServerSource",
+						"sqlReaderQuery": "SELECT [id]\n      ,[dataSourceName]\n      ,[processGroup]\n      ,[processGroupOrder]\n      ,[dataSourceType]\n      ,[fileExtension]\n      ,[secretConnectionString]\n      ,[secretDataLakeConnString]\n      ,[srcDatalakeContainerName]\n      ,[srcDataLakePath]\n      ,[onPremFileSystemPath]\n      ,[onPremFileSystemName]\n      ,[databaseName]\n      ,[sqlSchema]\n      ,[sqlTable]\n      ,[srcKeyColumns]\n      ,[dstRawContainer]\n      ,[dstRawPath]\n      ,[dstRefinedContainer]\n      ,[dstRefinedPath]\n      ,[SrcToRawDatabricksNotebook]\n      ,[RawtoRefinedDatabricksNotebook]\n      ,[IsEnabled]\n      ,[status]\n      ,[rawSourceQuery]\n      ,[refinedSourceQuery]\n      ,[isSnapshot]\n      ,[isWatermark]\n      ,[watermarkValue]\n      ,[isChangeTracking]\n      ,[lastChangeTrackingValue]\n  FROM [dbo].[metaSourceToRefined]\n  WHERE IsEnabled='1' and isSnapshot = '1'",
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					},
+					"dataset": {
+						"referenceName": "SqlServerTable1",
+						"type": "DatasetReference"
+					},
+					"firstRowOnly": false
+				}
+			},
+			{
+				"name": "For Each Snapshot",
+				"type": "ForEach",
+				"dependsOn": [
+					{
+						"activity": "Lookup1",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@activity('Lookup1').output.value",
+						"type": "Expression"
+					},
+					"activities": [
+						{
+							"name": "Copy Snapshot Data",
+							"type": "Copy",
+							"dependsOn": [
+								{
+									"activity": "WriteDataLakeAudit",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"source": {
+									"type": "SqlServerSource",
+									"queryTimeout": "02:00:00",
+									"partitionOption": "None"
+								},
+								"sink": {
+									"type": "DelimitedTextSink",
+									"storeSettings": {
+										"type": "AzureBlobStorageWriteSettings"
+									},
+									"formatSettings": {
+										"type": "DelimitedTextWriteSettings",
+										"quoteAllText": true,
+										"fileExtension": ".txt"
+									}
+								},
+								"enableStaging": false,
+								"translator": {
+									"type": "TabularTranslator",
+									"typeConversion": true,
+									"typeConversionSettings": {
+										"allowDataTruncation": true,
+										"treatBooleanAsNumber": false
+									}
+								}
+							},
+							"inputs": [
+								{
+									"referenceName": "sqldb",
+									"type": "DatasetReference",
+									"parameters": {
+										"schema": {
+											"value": "@item().sqlSchema",
+											"type": "Expression"
+										},
+										"table": {
+											"value": "@item().sqlTable",
+											"type": "Expression"
+										}
+									}
+								}
+							],
+							"outputs": [
+								{
+									"referenceName": "DelimitedText1",
+									"type": "DatasetReference",
+									"parameters": {
+										"container": {
+											"value": "@item().dstRawContainer",
+											"type": "Expression"
+										},
+										"directory": {
+											"value": "@concat(item().dstRawPath,'/',pipeline().parameters.rawFolder)",
+											"type": "Expression"
+										},
+										"filename": {
+											"value": "@item().sqlTable",
+											"type": "Expression"
+										},
+										"storage_secret": {
+											"value": "@item().secretDataLakeConnString",
+											"type": "Expression"
+										}
+									}
+								}
+							]
+						},
+						{
+							"name": "WriteDataLakeAudit",
+							"type": "SqlServerStoredProcedure",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"storedProcedureName": "[dbo].[uspWriteDataLakeAudit]",
+								"storedProcedureParameters": {
+									"auditOperation": {
+										"value": "I",
+										"type": "String"
+									},
+									"pipelineChildName": {
+										"value": {
+											"value": "@pipeline().Pipeline",
+											"type": "Expression"
+										},
+										"type": "String"
+									},
+									"pipelineChildRunID": {
+										"value": {
+											"value": "@pipeline().RunId",
+											"type": "Expression"
+										},
+										"type": "String"
+									},
+									"pipelineParentName": {
+										"value": {
+											"value": "@pipeline()?.TriggeredByPipelineName",
+											"type": "Expression"
+										},
+										"type": "String"
+									},
+									"pipelineParentRunID": {
+										"value": {
+											"value": "@pipeline()?.TriggeredByPipelineRunId",
+											"type": "Expression"
+										},
+										"type": "String"
+									},
+									"pipelineProcessGroup": {
+										"value": {
+											"value": "@pipeline().parameters.processGroup",
+											"type": "Expression"
+										},
+										"type": "String"
+									},
+									"tableContainer": {
+										"value": {
+											"value": "@item().dstRawContainer",
+											"type": "Expression"
+										},
+										"type": "String"
+									},
+									"tableCTBegin": {
+										"value": null,
+										"type": "Int64"
+									},
+									"tableCTEnd": {
+										"value": null,
+										"type": "Int64"
+									},
+									"tableDataRead": {
+										"value": null,
+										"type": "Int64"
+									},
+									"tableDataWritten": {
+										"value": null,
+										"type": "Int64"
+									},
+									"tableEnd": {
+										"value": null,
+										"type": "DateTime"
+									},
+									"tableName": {
+										"value": {
+											"value": "@item().sqlTable",
+											"type": "Expression"
+										},
+										"type": "String"
+									},
+									"tableRawFolder": {
+										"value": {
+											"value": "@pipeline().parameters.rawFolder",
+											"type": "Expression"
+										},
+										"type": "String"
+									},
+									"tableRowsCopied": {
+										"value": null,
+										"type": "Int64"
+									},
+									"tableRowsRead": {
+										"value": null,
+										"type": "Int64"
+									},
+									"tableStart": {
+										"value": {
+											"value": "@utcnow()",
+											"type": "Expression"
+										},
+										"type": "DateTime"
+									},
+									"tableStatus": {
+										"value": "A",
+										"type": "String"
+									},
+									"tableWatermarkBegin": {
+										"value": null,
+										"type": "DateTime"
+									},
+									"tableWatermarkEnd": {
+										"value": null,
+										"type": "DateTime"
+									}
+								}
+							},
+							"linkedServiceName": {
+								"referenceName": "sqlMetadata",
+								"type": "LinkedServiceReference"
+							}
+						},
+						{
+							"name": "UpdateDataLakeAudit",
+							"type": "SqlServerStoredProcedure",
+							"dependsOn": [
+								{
+									"activity": "Copy Snapshot Data",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"storedProcedureName": "[dbo].[uspWriteDataLakeAudit]",
+								"storedProcedureParameters": {
+									"auditOperation": {
+										"value": "U",
+										"type": "String"
+									},
+									"pipelineChildName": {
+										"value": {
+											"value": "@pipeline().Pipeline",
+											"type": "Expression"
+										},
+										"type": "String"
+									},
+									"pipelineChildRunID": {
+										"value": {
+											"value": "@pipeline().RunId",
+											"type": "Expression"
+										},
+										"type": "String"
+									},
+									"pipelineParentName": {
+										"value": {
+											"value": "@pipeline()?.TriggeredByPipelineName",
+											"type": "Expression"
+										},
+										"type": "String"
+									},
+									"pipelineParentRunID": {
+										"value": {
+											"value": "@pipeline()?.TriggeredByPipelineRunId",
+											"type": "Expression"
+										},
+										"type": "String"
+									},
+									"pipelineProcessGroup": {
+										"value": {
+											"value": "@pipeline().parameters.processGroup",
+											"type": "Expression"
+										},
+										"type": "String"
+									},
+									"tableContainer": {
+										"value": {
+											"value": "@item().dstRawContainer",
+											"type": "Expression"
+										},
+										"type": "String"
+									},
+									"tableCTBegin": {
+										"value": null,
+										"type": "Int64"
+									},
+									"tableCTEnd": {
+										"value": null,
+										"type": "Int64"
+									},
+									"tableDataRead": {
+										"value": {
+											"value": "@activity('Copy Snapshot Data').output.dataRead",
+											"type": "Expression"
+										},
+										"type": "Int64"
+									},
+									"tableDataWritten": {
+										"value": {
+											"value": "@activity('Copy Snapshot Data').output.dataWritten",
+											"type": "Expression"
+										},
+										"type": "Int64"
+									},
+									"tableEnd": {
+										"value": {
+											"value": "@utcnow()",
+											"type": "Expression"
+										},
+										"type": "DateTime"
+									},
+									"tableName": {
+										"value": {
+											"value": "@item().sqlTable",
+											"type": "Expression"
+										},
+										"type": "String"
+									},
+									"tableRawFolder": {
+										"value": {
+											"value": "@pipeline().parameters.rawFolder",
+											"type": "Expression"
+										},
+										"type": "String"
+									},
+									"tableRowsCopied": {
+										"value": {
+											"value": "@activity('Copy Snapshot Data').output.rowsRead",
+											"type": "Expression"
+										},
+										"type": "Int64"
+									},
+									"tableRowsRead": {
+										"value": {
+											"value": "@activity('Copy Snapshot Data').output.rowsCopied",
+											"type": "Expression"
+										},
+										"type": "Int64"
+									},
+									"tableStart": {
+										"value": null,
+										"type": "DateTime"
+									},
+									"tableStatus": {
+										"value": "C",
+										"type": "String"
+									},
+									"tableWatermarkBegin": {
+										"value": null,
+										"type": "DateTime"
+									},
+									"tableWatermarkEnd": {
+										"value": null,
+										"type": "DateTime"
+									}
+								}
+							},
+							"linkedServiceName": {
+								"referenceName": "sqlMetadata",
+								"type": "LinkedServiceReference"
+							}
+						}
+					]
+				}
+			},
+			{
+				"name": "Stored procedure1",
+				"type": "SqlServerStoredProcedure",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"storedProcedureName": "[dbo].[uspWritePipelineAudit]",
+					"storedProcedureParameters": {
+						"auditOperation": {
+							"value": "I",
+							"type": "String"
+						},
+						"pipelineChildName": {
+							"value": {
+								"value": "@pipeline().Pipeline",
+								"type": "Expression"
+							},
+							"type": "String"
+						},
+						"pipelineChildRunID": {
+							"value": {
+								"value": "@pipeline().RunId",
+								"type": "Expression"
+							},
+							"type": "String"
+						},
+						"pipelineEnd": {
+							"value": null,
+							"type": "DateTime"
+						},
+						"pipelineErrorMessage": {
+							"value": null,
+							"type": "String"
+						},
+						"pipelineParentName": {
+							"value": {
+								"value": "@pipeline()?.TriggeredByPipelineName",
+								"type": "Expression"
+							},
+							"type": "String"
+						},
+						"pipelineParentRunID": {
+							"value": {
+								"value": "@pipeline()?.TriggeredByPipelineRunId",
+								"type": "Expression"
+							},
+							"type": "String"
+						},
+						"pipelineProcessGroup": {
+							"value": {
+								"value": "@pipeline().parameters.processGroup",
+								"type": "Expression"
+							},
+							"type": "String"
+						},
+						"pipelineRawContainer": {
+							"value": "",
+							"type": "String"
+						},
+						"pipelineRawFolder": {
+							"value": {
+								"value": "@pipeline().parameters.rawFolder",
+								"type": "Expression"
+							},
+							"type": "String"
+						},
+						"pipelineStart": {
+							"value": {
+								"value": "@utcnow()",
+								"type": "Expression"
+							},
+							"type": "DateTime"
+						},
+						"pipelineStatus": {
+							"value": "A",
+							"type": "String"
+						},
+						"pipelineType": {
+							"value": "C",
+							"type": "String"
+						}
+					}
+				},
+				"linkedServiceName": {
+					"referenceName": "sqlMetadata",
+					"type": "LinkedServiceReference"
+				}
+			},
+			{
+				"name": "Stored procedure1_copy1",
+				"type": "SqlServerStoredProcedure",
+				"dependsOn": [
+					{
+						"activity": "For Each Snapshot",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"storedProcedureName": "[dbo].[uspWritePipelineAudit]",
+					"storedProcedureParameters": {
+						"auditOperation": {
+							"value": "U",
+							"type": "String"
+						},
+						"pipelineChildName": {
+							"value": {
+								"value": "@pipeline().Pipeline",
+								"type": "Expression"
+							},
+							"type": "String"
+						},
+						"pipelineChildRunID": {
+							"value": {
+								"value": "@pipeline().RunId",
+								"type": "Expression"
+							},
+							"type": "String"
+						},
+						"pipelineEnd": {
+							"value": {
+								"value": "@utcnow()",
+								"type": "Expression"
+							},
+							"type": "DateTime"
+						},
+						"pipelineErrorMessage": {
+							"value": null,
+							"type": "String"
+						},
+						"pipelineParentName": {
+							"value": {
+								"value": "@pipeline()?.TriggeredByPipelineName",
+								"type": "Expression"
+							},
+							"type": "String"
+						},
+						"pipelineParentRunID": {
+							"value": {
+								"value": "@pipeline()?.TriggeredByPipelineRunId",
+								"type": "Expression"
+							},
+							"type": "String"
+						},
+						"pipelineProcessGroup": {
+							"value": {
+								"value": "@pipeline().parameters.processGroup",
+								"type": "Expression"
+							},
+							"type": "String"
+						},
+						"pipelineRawContainer": {
+							"value": null,
+							"type": "String"
+						},
+						"pipelineRawFolder": {
+							"value": {
+								"value": "@pipeline().parameters.rawFolder",
+								"type": "Expression"
+							},
+							"type": "String"
+						},
+						"pipelineStart": {
+							"value": null,
+							"type": "DateTime"
+						},
+						"pipelineStatus": {
+							"value": "C",
+							"type": "String"
+						},
+						"pipelineType": {
+							"value": "C",
+							"type": "String"
+						}
+					}
+				},
+				"linkedServiceName": {
+					"referenceName": "sqlMetadata",
+					"type": "LinkedServiceReference"
+				}
+			}
+		],
+		"parameters": {
+			"rawFolder": {
+				"type": "string"
+			},
+			"processGroup": {
+				"type": "string"
+			}
+		},
+		"annotations": [],
+		"lastPublishTime": "2023-08-03T20:27:16Z"
+	},
+	"type": "Microsoft.DataFactory/factories/pipelines"
+}

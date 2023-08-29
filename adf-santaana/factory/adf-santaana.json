@@ -1,0 +1,9 @@
+{
+	"name": "adf-santaana",
+	"location": "eastus",
+	"identity": {
+		"type": "SystemAssigned",
+		"principalId": "b9da8eb8-144b-4a70-949e-bcd084d39d6e",
+		"tenantId": "e17c0f0c-6ff0-4c72-9fa8-b5aa41b420e8"
+	}
+}

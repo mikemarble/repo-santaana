@@ -1,0 +1,513 @@
+{
+	"name": "plParent_copy1",
+	"properties": {
+		"activities": [
+			{
+				"name": "GetYear",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "Write Audit - Parent",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "year",
+					"value": {
+						"value": "@substring(convertFromUtc(utcnow(),'Mountain Standard Time'),0,4)",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "GetMonth",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "Write Audit - Parent",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "month",
+					"value": {
+						"value": "@substring(convertFromUtc(utcnow(),'Mountain Standard Time'),5,2)",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "GetDay",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "Write Audit - Parent",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "day",
+					"value": {
+						"value": "@substring(convertFromUtc(utcnow(),'Mountain Standard Time'),8,2)",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "GetHour",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "Write Audit - Parent",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "hour",
+					"value": {
+						"value": "@substring(convertFromUtc(utcnow(),'Mountain Standard Time'),11,2)",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "SetRawFolder",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "GetYear",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					},
+					{
+						"activity": "GetMonth",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					},
+					{
+						"activity": "GetDay",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					},
+					{
+						"activity": "GetHour",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					},
+					{
+						"activity": "GetMinute",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "rawFolder",
+					"value": {
+						"value": "@concat(variables('year'),'/',variables('month'),'/',variables('day'),'/',variables('hour'),'/',variables('hour'),'/',variables('minute'))",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "GetMinute",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "Write Audit - Parent",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "minute",
+					"value": {
+						"value": "@substring(convertFromUtc(utcnow(),'Mountain Standard Time'),14,2)",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "plRaw_Snapshot",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "SetRawFolder",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "plRaw_Snapshot",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"rawFolder": {
+							"value": "@variables('rawFolder')",
+							"type": "Expression"
+						},
+						"processGroup": {
+							"value": "@pipeline().parameters.processGroup",
+							"type": "Expression"
+						}
+					}
+				}
+			},
+			{
+				"name": "plRaw_ChangeTracking",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "SetRawFolder",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "plRaw_ChangeTracking",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"rawFolder": {
+							"value": "@variables('rawFolder')",
+							"type": "Expression"
+						},
+						"processGroup": {
+							"value": "@pipeline().parameters.processGroup",
+							"type": "Expression"
+						}
+					}
+				}
+			},
+			{
+				"name": "Write Audit - Parent",
+				"type": "SqlServerStoredProcedure",
+				"dependsOn": [
+					{
+						"activity": "Set variable1",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"storedProcedureName": "[dbo].[uspWritePipelineAudit]",
+					"storedProcedureParameters": {
+						"auditOperation": {
+							"value": "I",
+							"type": "String"
+						},
+						"pipelineChildEnd": {
+							"value": {
+								"value": "@formatDateTime(variables('dummydate'),'yyyy-MM-dd hh:mm:ss')",
+								"type": "Expression"
+							},
+							"type": "DateTime"
+						},
+						"pipelineChildName": {
+							"value": null,
+							"type": "String"
+						},
+						"pipelineChildRunID": {
+							"value": null,
+							"type": "String"
+						},
+						"pipelineChildStart": {
+							"value": {
+								"value": "@formatDateTime(variables('dummydate'),'yyyy-MM-dd hh:mm:ss')",
+								"type": "Expression"
+							},
+							"type": "DateTime"
+						},
+						"pipelineChildStatus": {
+							"value": "",
+							"type": "String"
+						},
+						"pipelineErrorMessage": {
+							"value": "",
+							"type": "String"
+						},
+						"pipelineParentEnd": {
+							"value": {
+								"value": "@formatDateTime(variables('dummydate'),'yyyy-MM-dd hh:mm:ss')",
+								"type": "Expression"
+							},
+							"type": "DateTime"
+						},
+						"pipelineParentName": {
+							"value": {
+								"value": "@pipeline().Pipeline",
+								"type": "Expression"
+							},
+							"type": "String"
+						},
+						"pipelineParentRunID": {
+							"value": {
+								"value": "@pipeline().RunId",
+								"type": "Expression"
+							},
+							"type": "String"
+						},
+						"pipelineParentStart": {
+							"value": {
+								"value": "@utcnow()",
+								"type": "Expression"
+							},
+							"type": "DateTime"
+						},
+						"pipelineParentStatus": {
+							"value": "A",
+							"type": "String"
+						},
+						"pipelineProcessGroup": {
+							"value": {
+								"value": "@pipeline().parameters.processGroup",
+								"type": "Expression"
+							},
+							"type": "String"
+						},
+						"pipelineRawContainer": {
+							"value": "",
+							"type": "String"
+						},
+						"pipelineRawFolder": {
+							"value": "",
+							"type": "String"
+						}
+					}
+				},
+				"linkedServiceName": {
+					"referenceName": "sqlMetadata",
+					"type": "LinkedServiceReference"
+				}
+			},
+			{
+				"name": "Set variable1",
+				"type": "SetVariable",
+				"dependsOn": [],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "dummydate",
+					"value": {
+						"value": "@formatDateTime('1900-01-01 00:00:00.000', 'yyyy-MM-dd hh:mm:ss')",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "Write Audit - Parent_copy1",
+				"type": "SqlServerStoredProcedure",
+				"dependsOn": [
+					{
+						"activity": "plRaw_Snapshot",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					},
+					{
+						"activity": "plRaw_ChangeTracking",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"storedProcedureName": "[dbo].[uspWritePipelineAudit]",
+					"storedProcedureParameters": {
+						"auditOperation": {
+							"value": "U",
+							"type": "String"
+						},
+						"pipelineChildEnd": {
+							"value": null,
+							"type": "DateTime"
+						},
+						"pipelineChildName": {
+							"value": null,
+							"type": "String"
+						},
+						"pipelineChildRunID": {
+							"value": null,
+							"type": "String"
+						},
+						"pipelineChildStart": {
+							"value": null,
+							"type": "DateTime"
+						},
+						"pipelineChildStatus": {
+							"value": null,
+							"type": "String"
+						},
+						"pipelineErrorMessage": {
+							"value": null,
+							"type": "String"
+						},
+						"pipelineParentEnd": {
+							"value": {
+								"value": "@utcnow()",
+								"type": "Expression"
+							},
+							"type": "DateTime"
+						},
+						"pipelineParentName": {
+							"value": {
+								"value": "@pipeline().Pipeline",
+								"type": "Expression"
+							},
+							"type": "String"
+						},
+						"pipelineParentRunID": {
+							"value": {
+								"value": "@pipeline().RunId",
+								"type": "Expression"
+							},
+							"type": "String"
+						},
+						"pipelineParentStart": {
+							"value": null,
+							"type": "DateTime"
+						},
+						"pipelineParentStatus": {
+							"value": "C",
+							"type": "String"
+						},
+						"pipelineProcessGroup": {
+							"value": {
+								"value": "@pipeline().parameters.processGroup",
+								"type": "Expression"
+							},
+							"type": "String"
+						},
+						"pipelineRawContainer": {
+							"value": null,
+							"type": "String"
+						},
+						"pipelineRawFolder": {
+							"value": null,
+							"type": "String"
+						}
+					}
+				},
+				"linkedServiceName": {
+					"referenceName": "sqlMetadata",
+					"type": "LinkedServiceReference"
+				}
+			}
+		],
+		"parameters": {
+			"processGroup": {
+				"type": "string",
+				"defaultValue": "test"
+			}
+		},
+		"variables": {
+			"year": {
+				"type": "String"
+			},
+			"month": {
+				"type": "String"
+			},
+			"day": {
+				"type": "String"
+			},
+			"hour": {
+				"type": "String"
+			},
+			"rawFolder": {
+				"type": "String"
+			},
+			"minute": {
+				"type": "String"
+			},
+			"test": {
+				"type": "String"
+			},
+			"ct": {
+				"type": "String"
+			},
+			"schema": {
+				"type": "String"
+			},
+			"tbl": {
+				"type": "String"
+			},
+			"dummydate": {
+				"type": "String"
+			}
+		},
+		"annotations": [],
+		"lastPublishTime": "2023-08-03T20:27:16Z"
+	},
+	"type": "Microsoft.DataFactory/factories/pipelines"
+}

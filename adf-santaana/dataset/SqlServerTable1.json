@@ -1,0 +1,147 @@
+{
+	"name": "SqlServerTable1",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "sqlMetadata",
+			"type": "LinkedServiceReference"
+		},
+		"annotations": [],
+		"type": "SqlServerTable",
+		"schema": [
+			{
+				"name": "id",
+				"type": "int",
+				"precision": 10
+			},
+			{
+				"name": "dataSourceName",
+				"type": "varchar"
+			},
+			{
+				"name": "processGroup",
+				"type": "varchar"
+			},
+			{
+				"name": "processGroupOrder",
+				"type": "int",
+				"precision": 10
+			},
+			{
+				"name": "dataSourceType",
+				"type": "varchar"
+			},
+			{
+				"name": "fileExtension",
+				"type": "varchar"
+			},
+			{
+				"name": "secretConnectionString",
+				"type": "varchar"
+			},
+			{
+				"name": "dataLakeNameOrUrl",
+				"type": "varchar"
+			},
+			{
+				"name": "srcDatalakeContainerName",
+				"type": "varchar"
+			},
+			{
+				"name": "srcDataLakePath",
+				"type": "varchar"
+			},
+			{
+				"name": "onPremFileSystemPath",
+				"type": "varchar"
+			},
+			{
+				"name": "onPremFileSystemName",
+				"type": "varchar"
+			},
+			{
+				"name": "databaseName",
+				"type": "varchar"
+			},
+			{
+				"name": "sqlSchema",
+				"type": "varchar"
+			},
+			{
+				"name": "sqlTable",
+				"type": "varchar"
+			},
+			{
+				"name": "srcKeyColumns",
+				"type": "varchar"
+			},
+			{
+				"name": "dstRawContainer",
+				"type": "varchar"
+			},
+			{
+				"name": "dstRawPath",
+				"type": "varchar"
+			},
+			{
+				"name": "dstRefinedContainer",
+				"type": "varchar"
+			},
+			{
+				"name": "dstRefinedPath",
+				"type": "varchar"
+			},
+			{
+				"name": "SrcToRawDatabricksNotebook",
+				"type": "varchar"
+			},
+			{
+				"name": "RawtoRefinedDatabricksNotebook",
+				"type": "varchar"
+			},
+			{
+				"name": "IsEnabled",
+				"type": "bit"
+			},
+			{
+				"name": "status",
+				"type": "varchar"
+			},
+			{
+				"name": "rawSourceQuery",
+				"type": "varchar"
+			},
+			{
+				"name": "refinedSourceQuery",
+				"type": "varchar"
+			},
+			{
+				"name": "isSnapshot",
+				"type": "bit"
+			},
+			{
+				"name": "isWatermark",
+				"type": "bit"
+			},
+			{
+				"name": "watermarkValue",
+				"type": "datetime",
+				"precision": 23,
+				"scale": 3
+			},
+			{
+				"name": "isChangeTracking",
+				"type": "bit"
+			},
+			{
+				"name": "lastChangeTrackingValue",
+				"type": "bigint",
+				"precision": 19
+			}
+		],
+		"typeProperties": {
+			"schema": "dbo",
+			"table": "metaSourceToRefined"
+		}
+	},
+	"type": "Microsoft.DataFactory/factories/datasets"
+}
